@@ -139,3 +139,4 @@ module.exports = {
   updateUser,
   deleteUser,
 };
+//her endpointin arkasındaki iş mantığı (DB sorguları vs.).

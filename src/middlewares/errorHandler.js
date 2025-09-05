@@ -18,3 +18,4 @@ function errorHandler(err, req, res, next) {
 }
 
 module.exports = errorHandler;
+//hataları tek yerden yönetmek için.

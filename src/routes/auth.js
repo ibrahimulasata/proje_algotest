@@ -3,7 +3,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Joi = require("joi");
-const pool = require("../db");
+const { pool } = require("../db");
 
 const router = express.Router();
 
@@ -65,3 +65,4 @@ router.post("/login", async (req, res) => {
 });
 
 module.exports = router;
+//amaç kullanıcı girişini  yapmak ve JWT token üretmek, burada login endpoint’in var

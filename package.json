@@ -2,10 +2,10 @@
   "name": "proje_algotest",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "dev": "nodemon index.js",
-    "start": "node index.js"
-  },
+ "scripts": {
+  "dev": "nodemon src/index.js",
+  "start": "node src/index.js"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",

@@ -23,3 +23,4 @@ function validate(schema) {
 }
 
 module.exports = validate;
+//gelen verilerin formatı doğru mu ? örneğin şifre en az 6 kareketer mi 

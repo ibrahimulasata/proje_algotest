@@ -27,3 +27,5 @@ function canActOnSelf(req, res, next) {
 }
 
 module.exports = { authMiddleware, canActOnSelf };
+
+//login olmuş mu, kendi kaydında mı işlem yapıyor kontrol ettim. burda kotnrol yapılıyor , geçerese next diyip devam ediliyor.

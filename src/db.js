@@ -10,3 +10,5 @@ const pool = new Pool({
 });
 
 module.exports = { pool };
+
+//veritabanı bağlantısı merkez
