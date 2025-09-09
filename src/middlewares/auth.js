@@ -18,14 +18,21 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// Sadece kendi kaydında işlem
-function canActOnSelf(req, res, next) {
-  if (String(req.user.sub) !== String(req.params.id)) {
-    return res.status(403).json({ message: "Bu işlem için yetkin yok" });
-  }
-  next();
+// Sadece kendi kaydı ya da admin izni
+function requireSelfOrAdmin(req, res, next) {
+  const isSelf = String(req.user.sub) === String(req.params.id);
+  const isAdmin = req.user.role === "admin";
+  if (isSelf || isAdmin) return next();
+  return res.status(403).json({ message: "Bu işlem için yetkin yok" });
 }
 
-module.exports = { authMiddleware, canActOnSelf };
+// Sadece admin
+function requireAdmin(req, res, next) {
+  if (req.user?.role === "admin") return next();
+  return res.status(403).json({ message: "Admin yetkisi gerekli" });
+}
+
+module.exports = { authMiddleware, requireSelfOrAdmin, requireAdmin };
+
 
 //login olmuş mu, kendi kaydında mı işlem yapıyor kontrol ettim. burda kotnrol yapılıyor , geçerese next diyip devam ediliyor.

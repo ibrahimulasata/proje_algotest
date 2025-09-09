@@ -1,11 +1,31 @@
 // src/controllers/users.js
+const Joi = require("joi");
 const bcrypt = require("bcryptjs");
 const { pool } = require("../db");
 
-// GET /users
+// ---- Joi şemaları ----
+const createUserSchema = Joi.object({
+  fullname: Joi.string().min(3).max(100).required(),
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+});
+
+const updateUserSchema = Joi.object({
+  fullname: Joi.string().min(3).max(100),
+  email: Joi.string().email(),
+  password: Joi.string().min(6),
+}).min(1);
+
+// ---- Controller fonksiyonları ----
 async function listUsers(req, res) {
   try {
-    const q = `SELECT id, fullname, email, created_at FROM users ORDER BY id`;
+    // Admin değilse email paylaşmıyoruz (PII azaltma)
+    const select =
+      req.user?.role === "admin"
+        ? "id, fullname, email, created_at"
+        : "id, fullname, created_at";
+
+    const q = `SELECT ${select} FROM users ORDER BY id`;
     const { rows } = await pool.query(q);
     res.json(rows);
   } catch (err) {
@@ -14,7 +34,6 @@ async function listUsers(req, res) {
   }
 }
 
-// GET /users/:id
 async function getUserById(req, res) {
   try {
     const { id } = req.params;
@@ -25,28 +44,32 @@ async function getUserById(req, res) {
     `;
     const { rows } = await pool.query(q, [id]);
     if (!rows.length) return res.status(404).json({ message: "Kullanıcı bulunamadı" });
-    res.json(rows[0]);
+
+    const isAdmin = req.user?.role === "admin";
+    const isSelf = String(req.user?.sub) === String(id);
+    const user = rows[0];
+
+    if (!isAdmin && !isSelf) {
+      delete user.email; // başkasının email'ini sızdırma
+    }
+
+    res.json(user);
   } catch (err) {
     console.error("GET /users/:id hata:", err);
     res.status(500).json({ message: "Server hatası" });
   }
 }
 
-// POST /users
 async function createUser(req, res) {
   try {
-    let { fullname, email, password } = req.body;
+    const { error, value } = createUserSchema.validate(req.body, { abortEarly: false });
+    if (error) return res.status(400).json({ message: error.details[0].message });
 
-    if (!fullname || !email || !password) {
-      return res.status(400).json({ message: "fullname, email, password zorunlu" });
-    }
+    let { fullname, email, password } = value;
     fullname = String(fullname).trim();
     email = String(email).trim().toLowerCase();
-    if (String(password).length < 6) {
-      return res.status(400).json({ message: "Şifre en az 6 karakter olmalı" });
-    }
 
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 12); // bir tık daha güçlü
 
     const insert = `
       INSERT INTO users (fullname, email, password_hash)
@@ -64,41 +87,32 @@ async function createUser(req, res) {
   }
 }
 
-// PUT /users/:id
 async function updateUser(req, res) {
   try {
-    const { id } = req.params;
-    let { fullname, email, password } = req.body;
+    const { error, value } = updateUserSchema.validate(req.body, { abortEarly: false });
+    if (error) return res.status(400).json({ message: error.details[0].message });
 
-    if (!fullname && !email && !password) {
-      return res.status(400).json({ message: "Güncellenecek alan yok" });
-    }
+    const { id } = req.params;
 
     const fields = [];
     const params = [];
     let idx = 1;
 
-    if (fullname) {
-      fullname = String(fullname).trim();
+    if (value.fullname) {
       fields.push(`fullname = $${idx++}`);
-      params.push(fullname);
+      params.push(String(value.fullname).trim());
     }
-
-    if (email) {
-      email = String(email).trim().toLowerCase();
+    if (value.email) {
       fields.push(`email = $${idx++}`);
-      params.push(email);
+      params.push(String(value.email).trim().toLowerCase());
     }
-
-    if (password) {
-      if (String(password).length < 6)
-        return res.status(400).json({ message: "Şifre en az 6 karakter olmalı" });
-      const hash = await bcrypt.hash(password, 10);
+    if (value.password) {
       fields.push(`password_hash = $${idx++}`);
-      params.push(hash);
+      params.push(await bcrypt.hash(String(value.password), 12));
     }
 
     params.push(id);
+
     const q = `
       UPDATE users
       SET ${fields.join(", ")}
@@ -106,8 +120,8 @@ async function updateUser(req, res) {
       RETURNING id, fullname, email, created_at
     `;
     const { rows } = await pool.query(q, params);
-
     if (!rows.length) return res.status(404).json({ message: "Kullanıcı bulunamadı" });
+
     res.json(rows[0]);
   } catch (err) {
     if (err.code === "23505") {
@@ -118,7 +132,6 @@ async function updateUser(req, res) {
   }
 }
 
-// DELETE /users/:id
 async function deleteUser(req, res) {
   try {
     const { id } = req.params;
@@ -132,11 +145,6 @@ async function deleteUser(req, res) {
   }
 }
 
-module.exports = {
-  listUsers,
-  getUserById,
-  createUser,
-  updateUser,
-  deleteUser,
-};
+module.exports = { listUsers, getUserById, createUser, updateUser, deleteUser };
+
 //her endpointin arkasındaki iş mantığı (DB sorguları vs.).
